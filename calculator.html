@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JS Calculator</title>
+  <style>
+    :root{
+      --bg:#0f1220; 
+      --panel:#171a2b; 
+      --btn:#1f2340; 
+      --btn-accent:#4e6bff; 
+      --btn-danger:#ff5a7a; 
+      --text:#e7eaf6; 
+      --muted:#9aa3b2;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; height:100svh; display:grid; place-items:center; 
+      background:radial-gradient(80% 60% at 50% 10%, #1a1f3a 0%, #0f1220 60%);
+      color:var(--text); font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+    .calc{
+      width:min(92vw, 380px);
+      background:linear-gradient(180deg, var(--panel), #121527);
+      border:1px solid #1f2340; border-radius:20px; padding:16px; 
+      box-shadow:0 20px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+    }
+    .brand{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted); margin:4px 4px 12px}
+    .screen{
+      background:rgba(0,0,0,.25); border:1px solid #242949; border-radius:16px; 
+      padding:14px 16px; min-height:92px; display:flex; flex-direction:column; justify-content:space-between;
+      box-shadow:inset 0 2px 8px rgba(0,0,0,.35);
+    }
+    .expr{font-size:14px; color:var(--muted); word-wrap:anywhere; min-height:20px}
+    .result{font-size:36px; line-height:1.2; font-weight:700; text-align:right; word-wrap:anywhere}
+
+    .keys{display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-top:14px}
+    button{
+      appearance:none; border:none; cursor:pointer; 
+      background:var(--btn); color:var(--text); 
+      padding:14px; border-radius:14px; font-size:18px; font-weight:600;
+      box-shadow:0 6px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.05);
+      transition:transform .05s ease, filter .2s ease, background .2s ease;
+    }
+    button:active{ transform:translateY(1px); }
+    .op{ background:linear-gradient(180deg, #2a2f56, #1d2246); }
+    .accent{ background:linear-gradient(180deg, #6c82ff, var(--btn-accent)); color:white; }
+    .danger{ background:linear-gradient(180deg, #ff7b93, var(--btn-danger)); color:white; }
+    .span-2{ grid-column: span 2; }
+
+    .footer { margin-top:12px; text-align:center; font-size:12px; color:var(--muted); }
+    kbd{background:#0c0f20; border:1px solid #1f2340; border-bottom-color:#121527; padding:2px 6px; border-radius:6px}
+  </style>
+</head>
+<body>
+  <div class="calc" id="calc">
+    <div class="brand">JS Calculator Create By Emon</div>
+    <div class="screen">
+      <div class="expr" id="expr">0</div>
+      <div class="result" id="result">0</div>
+    </div>
+
+    <div class="keys" id="keys">
+      <button class="danger" data-action="clear">AC</button>
+      <button data-action="delete">DEL</button>
+      <button class="op" data-value="%">%</button>
+      <button class="op" data-value="/">÷</button>
+
+      <button data-value="7">7</button>
+      <button data-value="8">8</button>
+      <button data-value="9">9</button>
+      <button class="op" data-value="*">×</button>
+
+      <button data-value="4">4</button>
+      <button data-value="5">5</button>
+      <button data-value="6">6</button>
+      <button class="op" data-value="-">−</button>
+
+      <button data-value="1">1</button>
+      <button data-value="2">2</button>
+      <button data-value="3">3</button>
+      <button class="op" data-value="+">+</button>
+
+      <button class="span-2" data-value="0">0</button>
+      <button data-value=".">.</button>
+      <button class="accent" data-action="equals">=</button>
+
+      <button class="span-2" data-action="negate">+/−</button>
+      <button class="span-2" data-action="square">x²</button>
+    </div>
+
+    
+
+  <script>
+    (function(){
+      const exprEl = document.getElementById('expr');
+      const resultEl = document.getElementById('result');
+      const keys = document.getElementById('keys');
+
+      let expr = '';
+      let lastAns = '0';
+
+      function sanitize(input){
+        // allow only digits, operators, dot, parentheses, spaces
+        return input.replace(/[^0-9+\-*/%.() ]/g, '');
+      }
+
+      function show(){
+        exprEl.textContent = expr || '0';
+      }
+      function setResult(val){
+        resultEl.textContent = val;
+      }
+
+      function compute(){
+        if(!expr) return setResult('0');
+        const safe = sanitize(expr)
+          .replace(/%/g, '/100');
+        try{
+          // avoid eval injection by sanitization above
+          const value = Function(`"use strict"; return (${safe})`)();
+          const out = Number.isFinite(value) ? value : NaN;
+          if (isNaN(out)) throw new Error('NaN');
+          lastAns = String(out);
+          setResult(formatNumber(out));
+        }catch(e){ setResult('Error'); }
+      }
+
+      function formatNumber(num){
+        // keep up to 10 decimal places without trailing zeros
+        const str = Math.abs(num) > 1e12 ? num.toExponential(6) : num.toFixed(10);
+        return str.replace(/\.0+$|(?<=\..*?)0+$/g, '');
+      }
+
+      function input(val){
+        // Prevent two operators in a row except minus for negative numbers
+        const last = expr.slice(-1);
+        const isOp = c => /[+\-*/%]/.test(c);
+        if(val === '.'){
+          // avoid multiple dots in the current number chunk
+          const chunk = expr.split(/[^0-9.]/).pop();
+          if(chunk.includes('.')) return; 
+        }
+        if(isOp(val)){
+          if(expr === '' && val !== '-') return; // can't start with op except minus
+          if(isOp(last)){
+            // replace last operator (allow switching)
+            expr = expr.slice(0, -1) + val; show(); compute(); return;
+          }
+        }
+        expr += val; show(); compute();
+      }
+
+      function clearAll(){ expr = ''; show(); setResult('0'); }
+      function del(){ expr = expr.slice(0, -1); show(); compute(); }
+      function equals(){ compute(); expr = String(resultEl.textContent === 'Error' ? '' : lastAns); show(); }
+      function negate(){
+        // toggle sign of the last number
+        const m = expr.match(/(.*?)(-?\d*\.?\d+)([^\d.]*)$/);
+        if(!m){ expr = expr ? `-(${expr})` : '-'; show(); compute(); return; }
+        const [, head, num, tail] = m;
+        expr = head + (num.startsWith('-') ? num.slice(1) : '-' + num) + tail;
+        show(); compute();
+      }
+      function square(){
+        const m = expr.match(/(.*?)(\d*\.?\d+)([^\d.]*)$/);
+        if(!m) return; 
+        const [, head, num, tail] = m;
+        expr = head + `(${num}*${num})` + tail;
+        show(); compute();
+      }
+
+      keys.addEventListener('click', e=>{
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        const val = btn.dataset.value;
+        const action = btn.dataset.action;
+        if(val) input(val);
+        else if(action){
+          ({clear:clearAll, delete:del, equals:equals, negate:negate, square:square}[action])?.();
+        }
+      });
+
+      window.addEventListener('keydown', e=>{
+        if(/^[0-9+\-*/%.()]$/.test(e.key)) { input(e.key); }
+        else if(e.key === 'Enter') { e.preventDefault(); equals(); }
+        else if(e.key === 'Backspace') { del(); }
+      });
+
+      // init
+      show(); setResult('0');
+    })();
+  </script>
+</body>
+</html>
